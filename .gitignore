@@ -1,0 +1,18 @@
+# R and RStudio
+.Rproj.user/
+.Rhistory
+.RData
+.Ruserdata
+.httr-oauth
+
+# macOS
+.DS_Store
+
+# Quarto rendering
+.quarto/
+paper/paper_files/
+paper/paper.tex
+paper/*.log
+
+# Cleaned tickets (about 600 MB); rebuilt by scripts/02-clean_data.R
+data/analysis_data/parking_tickets/
