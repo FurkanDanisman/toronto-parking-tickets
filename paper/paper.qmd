@@ -1,0 +1,403 @@
+---
+title: "Construction Sites and Parking Tickets in Toronto"
+subtitle: "[Write: a subtitle that states the main finding]"
+author:
+  - Furkan Danisman
+thanks: "Code and data are available at: [https://github.com/FurkanDanisman/toronto-parking-tickets](https://github.com/FurkanDanisman/toronto-parking-tickets)."
+date: today
+date-format: "D MMMM YYYY"
+abstract: "[Write: three or four sentences. (1) What was done: 32 million Toronto parking tickets from 2010 to 2025 were placed on street blocks, and blocks where construction started were compared with matched nearby blocks without construction. (2) What was found: construction blocks received about 0.4 more tickets per block per month, roughly 8 per cent more, and the gap grew over the first two years. (3) Why it matters.]"
+format:
+  pdf:
+    toc: false
+    number-sections: true
+    colorlinks: true
+    fig-pos: "htbp"
+    tbl-pos: "htbp"
+    include-in-header:
+      text: |
+        \usepackage{placeins}
+bibliography: references.bib
+execute:
+  echo: false
+  warning: false
+  message: false
+---
+
+```{r}
+#| include: false
+
+library(tidyverse)
+library(arrow)
+library(sf)
+library(tinytable)
+library(here)
+
+# Summary tables and plotting data prepared by scripts/05-prepare_paper_data.R
+tickets_by_year <- read_csv(here("data/analysis_data/paper/tickets_by_year.csv"), show_col_types = FALSE)
+top_infractions <- read_csv(here("data/analysis_data/paper/top_infractions_2025.csv"), show_col_types = FALSE)
+construction_summary <- read_csv(here("data/analysis_data/paper/construction_summary.csv"), show_col_types = FALSE)
+heatmap_layers <- readRDS(here("data/analysis_data/paper/heatmap_layers.rds"))
+heatmap_tickets <- read_parquet(here("data/analysis_data/paper/heatmap_tickets_2025.parquet"))
+
+# Construction analysis results from scripts/06-construction_analysis.R
+did_groups <- read_csv(here("data/analysis_data/construction_did_groups.csv"), show_col_types = FALSE)
+did_effects <- read_csv(here("data/analysis_data/construction_did_effects.csv"), show_col_types = FALSE)
+did_period <- read_csv(here("data/analysis_data/construction_did_period_effects.csv"), show_col_types = FALSE)
+did_summary <- read_csv(here("data/analysis_data/construction_did_summary.csv"), show_col_types = FALSE)
+
+main_effect <-
+  did_effects |>
+  filter(comparison == "Nearby blocks, no construction in window", period == "All months after start")
+
+total_tickets <- sum(tickets_by_year$tickets[!is.na(tickets_by_year$year)])
+located_share <- sum(tickets_by_year$located) / total_tickets
+construction_blocks <- did_summary$construction_blocks[did_summary$comparison == "Nearby blocks, no construction in window"]
+
+comma <- scales::label_comma()
+```
+
+# Introduction
+
+::: {.callout-note appearance="minimal"}
+**Write:** paragraph on the broader context. Why parking enforcement matters in Toronto: the number of tickets each year (about `r comma(round(mean(tickets_by_year$tickets[tickets_by_year$year >= 2022 & !is.na(tickets_by_year$year)]), -4))` a year since 2022), the money involved, curb space as a scarce resource [@shoup2005], and fines as a way to change behaviour [@becker1968].
+:::
+
+::: {.callout-note appearance="minimal"}
+**Write:** paragraph on the gap and what was done. Construction sites take curb space and bring trucks, but whether they change where tickets are written is not known. This paper places `r comma(total_tickets)` tickets from 2010 to 2025 on the street network and compares `r comma(construction_blocks)` blocks where construction started with matched nearby blocks that had none, using a difference-in-differences design [@card1994; @angrist2009].
+:::
+
+::: {.callout-note appearance="minimal"}
+**Write:** paragraph on what was found and why it matters. Construction blocks received `r round(main_effect$estimate, 2)` more tickets per block per month than their matched blocks (95% confidence interval `r round(main_effect$conf.low, 2)` to `r round(main_effect$conf.high, 2)`), about `r scales::percent(main_effect$percent_of_pre_mean, accuracy = 1)` more, and the gap grew the longer construction went on. Be specific; mention the caveat from @sec-discussion.
+:::
+
+The remainder of this paper is structured as follows. @sec-data describes the parking ticket and building permit data, how they are measured, and where tickets are written across the city and the day. @sec-construction explains how blocks with construction are compared with similar blocks without it and presents the results. @sec-discussion discusses what the results mean and their limitations. @sec-cleaning in the appendix describes how the data were cleaned and matched to the street network, and @sec-robustness reports alternative versions of the comparison.
+
+# Data {#sec-data}
+
+## Source and context
+
+::: {.callout-note appearance="minimal"}
+**Write:** the data come from Open Data Toronto, downloaded with the `opendatatoronto` package [@opendatatoronto]. Parking tickets [@data_parking_tickets]; building permits [@data_building_permits_active; @data_building_permits_cleared]; address points [@data_address_points]; street centreline [@data_centreline]; former municipality boundaries [@data_former_municipalities]; green spaces [@data_green_spaces]. Who publishes them and why; privacy (licence plates are removed and ticket numbers masked); why 2020 and 2021 are excluded (the pandemic changed parking and enforcement); similar datasets that could have been used and why they were not (for example, road restrictions exist only as a live feed, and utility cut permits only cover 2024 onward).
+:::
+
+The analysis uses R [@citeR] with the `tidyverse` [@tidyverse], `arrow` [@arrow], `sf` [@sf], `jsonlite` [@jsonlite], `fixest` [@fixest], `testthat` [@testthat], `here` [@here], and `knitr` [@knitr]. Graphs are made with `ggplot2` [@ggplot2] and `hexbin` [@hexbin], and tables with `tinytable` [@tinytable].
+
+## Measurement
+
+::: {.callout-note appearance="minimal"}
+**Write:** how an event in the world becomes a row. A parking enforcement officer (or police officer) sees a vehicle parked against a rule, issues a ticket with the date, time, infraction, fine and a location written as an address or an intersection; the city publishes the ticket with the plate removed. What this misses: violations nobody ticketed, so the counts measure enforcement as much as behaviour; tickets later cancelled or disputed are still counted. For construction: a permit is issued, but its "completed" date is administrative, so active periods are approximated (see @sec-cleaning).
+:::
+
+## Parking tickets
+
+@tbl-variables lists what each ticket records.
+
+```{r}
+#| label: tbl-variables
+#| tbl-cap: "Each parking ticket records when and where it was issued, the rule that was broken, and the fine. Ticket numbers are partly masked and licence plates are not published."
+
+tibble(
+  Variable = c(
+    "Ticket number", "Date", "Time", "Infraction code", "Infraction description",
+    "Fine", "Location", "Province"
+  ),
+  Description = c(
+    "Ticket identifier with the first digits masked",
+    "Day the ticket was issued",
+    "Time on a 24-hour clock",
+    "Number identifying the rule that was broken",
+    "Short text version of the rule",
+    "Set fine in dollars",
+    "Street address, or a street and a cross street",
+    "Province or state of the licence plate"
+  ),
+  Example = c(
+    "***65822", "1 January 2025", "00:02", "29", "Park prohibited time no permit",
+    "$45", "Near 77 Portland St", "ON"
+  )
+) |>
+  tt(width = c(0.22, 0.48, 0.3)) |>
+  format_tt(escape = TRUE) |>
+  style_tt(j = 1:3, align = "l")
+```
+
+::: {.callout-note appearance="minimal"}
+**Write:** describe @tbl-years: about two million tickets a year, the share placed on a street block, how the average fine changed; note that the published 2013 file stops on 18 November 2013.
+:::
+
+```{r}
+#| label: tbl-years
+#| tbl-cap: "Toronto issues about two million parking tickets a year, and more than 85 per cent can be placed on a specific street block. The average fine was stable through the 2010s and rose sharply in 2024 and 2025. The 2013 file ends on 18 November 2013."
+
+tickets_by_year |>
+  filter(!is.na(year)) |>
+  transmute(
+    Year = as.character(year),
+    Tickets = tickets,
+    `Placed on a street block` = share_located,
+    `Average fine` = mean_fine,
+    `Total fines ($ millions)` = fines_total / 1e6
+  ) |>
+  tt() |>
+  format_tt(j = 2, digits = 0, num_mark_big = ",", num_fmt = "decimal") |>
+  format_tt(j = 3, fn = scales::label_percent(accuracy = 1)) |>
+  format_tt(j = 4, fn = scales::label_dollar(accuracy = 1)) |>
+  format_tt(j = 5, digits = 1, num_fmt = "decimal", num_zero = TRUE) |>
+  format_tt(escape = TRUE) |>
+  style_tt(j = 2:5, align = "r")
+```
+
+::: {.callout-note appearance="minimal"}
+**Write:** describe @tbl-infractions: the most common rules broken in 2025, their fines, and which happen overnight.
+:::
+
+```{r}
+#| label: tbl-infractions
+#| tbl-cap: "Eight rules account for most tickets. Parking on private property is the most common; tickets for parking without a permit and for staying longer than three hours are mostly written overnight, when permit parking rules apply."
+
+top_infractions |>
+  transmute(
+    Code = as.character(infraction_code),
+    Rule = str_to_sentence(description),
+    Fine = fine,
+    Tickets = tickets,
+    `Share of all tickets` = share,
+    `Written overnight` = overnight_share
+  ) |>
+  tt(width = c(0.08, 0.36, 0.1, 0.14, 0.16, 0.16)) |>
+  format_tt(j = 3, fn = scales::label_dollar(accuracy = 1)) |>
+  format_tt(j = 4, digits = 0, num_mark_big = ",", num_fmt = "decimal") |>
+  format_tt(j = 5:6, fn = scales::label_percent(accuracy = 1)) |>
+  format_tt(escape = TRUE) |>
+  style_tt(j = 1:2, align = "l") |>
+  style_tt(j = 3:6, align = "r")
+```
+
+::: {.callout-note appearance="minimal"}
+**Write:** describe @fig-heatmap: where tickets are written at different times of day. Overnight tickets spread across the whole city; during working hours they concentrate downtown and along Yonge Street.
+:::
+
+```{r}
+#| label: fig-heatmap
+#| fig-cap: "Overnight tickets are spread across the city, while working-hours tickets concentrate downtown. Each hexagon is 300 metres across; its colour is the average number of tickets issued there per hour in that time window on a 2025 day. Dashed lines are the six former municipalities amalgamated in 1998. The map is rotated so Toronto's street grid runs horizontally."
+#| fig-width: 7
+#| fig-height: 5.2
+
+ggplot() +
+  geom_sf(data = heatmap_layers$land, fill = "#f2f2f0", colour = NA) +
+  geom_sf(data = heatmap_layers$parks, fill = "#cfe8c6", colour = NA) +
+  geom_sf(data = heatmap_layers$main_roads, colour = "white", linewidth = 0.15) +
+  geom_hex(
+    data = mutate(heatmap_tickets, label = factor(label, levels = c(
+      "Overnight (00:00-05:59)", "Morning (06:00-08:59)",
+      "Working hours (09:00-16:59)", "After work (17:00-23:59)"
+    ))),
+    aes(x = x, y = y, weight = weight),
+    binwidth = 300,
+    alpha = 0.85
+  ) +
+  geom_sf(data = heatmap_layers$municipalities, fill = NA, colour = "#5f6670", linewidth = 0.2, linetype = "22") +
+  geom_text(
+    data = heatmap_layers$district_labels,
+    aes(x = x, y = y, label = district),
+    colour = "#5f6670", size = 1.9, fontface = "bold"
+  ) +
+  scale_fill_distiller(
+    palette = "YlOrRd",
+    direction = 1,
+    trans = "log10",
+    breaks = c(0.001, 0.01, 0.1, 1),
+    labels = c("0.001", "0.01", "0.1", "1"),
+    name = "Average tickets per hour"
+  ) +
+  facet_wrap(vars(label), ncol = 2) +
+  coord_sf(datum = NA, expand = FALSE) +
+  theme_void() +
+  theme(
+    panel.background = element_rect(fill = "#aad3f2", colour = NA),
+    strip.text = element_text(size = 9, face = "bold", margin = margin(4, 0, 4, 0)),
+    legend.position = "bottom",
+    legend.title = element_text(size = 8),
+    legend.text = element_text(size = 7),
+    legend.key.width = unit(1.5, "cm"),
+    legend.key.height = unit(0.25, "cm")
+  )
+```
+
+## Construction sites
+
+::: {.callout-note appearance="minimal"}
+**Write:** building permits identify construction sites; only new buildings and demolitions are kept, because interior, plumbing and mechanical work does not affect the street. Describe @tbl-construction.
+:::
+
+```{r}
+#| label: tbl-construction
+#| tbl-cap: "Building permits identify more than 30,000 new buildings and demolitions active between 2010 and 2025, and about nine in ten can be placed on a street block. Demolitions are short; new buildings are counted as active for up to three years."
+
+construction_summary |>
+  transmute(
+    `Type of work` = work,
+    Sites = sites,
+    `Placed on a street block` = located,
+    `Typical months active` = median_months_active
+  ) |>
+  tt() |>
+  format_tt(j = 2, digits = 0, num_mark_big = ",", num_fmt = "decimal") |>
+  format_tt(j = 3, fn = scales::label_percent(accuracy = 1)) |>
+  format_tt(j = 4, digits = 0, num_fmt = "decimal") |>
+  format_tt(escape = TRUE) |>
+  style_tt(j = 2:4, align = "r")
+```
+
+# Construction and parking tickets {#sec-construction}
+
+## Comparing blocks with and without construction
+
+::: {.callout-note appearance="minimal"}
+**Write:** explain difference-in-differences in plain language. A block where construction starts (the treatment group) is compared with the average of five nearby blocks with no construction (the control group). Controls are within 1.5 km but more than 250 m away (so construction does not spill onto them), on the same kind of street, with no construction from 12 months before to 24 months after the start, and with the most similar number and trend of tickets in the year before [@stuart2010]. Each construction block and its controls form a "stack" observed over the same calendar months [@wing2024]. The effect is how much the gap between the two groups changes after construction starts, compared with the year before. Explain why the year before matters (the groups should move in parallel before construction) and the risk of regression to the mean in matched designs [@daw2018; @roth2023].
+:::
+
+The comparison is estimated with the regression
+
+$$
+y_{it} = \alpha_i + \gamma_{s(i),t} + \beta D_{it} + \varepsilon_{it},
+$$
+
+::: {.callout-note appearance="minimal"}
+**Write:** explain each symbol in words. $y_{it}$ is the number of tickets on block $i$ in month $t$; $\alpha_i$ is each block's usual number of tickets; $\gamma_{s(i),t}$ is anything a construction block shares with its own control blocks in that calendar month, such as a citywide enforcement push or a snowy February; $D_{it}$ is 1 for a construction block after its construction started and 0 otherwise; $\beta$ is the effect, measured in extra tickets per block per month; $\varepsilon_{it}$ is everything else. Explain the confidence interval and p-value in plain words.
+:::
+
+## Results
+
+::: {.callout-note appearance="minimal"}
+**Write:** describe @fig-did-groups: the two groups move in parallel before construction; afterwards the control group continues a slow decline shared by the whole city while construction blocks rise.
+:::
+
+```{r}
+#| label: fig-did-groups
+#| fig-cap: "Tickets on blocks where construction started rose, while similar nearby blocks without construction continued a slow decline. Each line is the average number of tickets per block per month; the control line averages each construction block's five matched nearby blocks, so every construction block and its controls count once."
+#| fig-width: 7
+#| fig-height: 4
+
+did_groups |>
+  mutate(group = fct_rev(group)) |>
+  ggplot(aes(x = event_month, y = tickets, colour = group)) +
+  annotate("rect", xmin = -Inf, xmax = -0.5, ymin = -Inf, ymax = Inf, fill = "#e3ecf7") +
+  annotate("rect", xmin = -0.5, xmax = Inf, ymin = -Inf, ymax = Inf, fill = "#fbe3c8") +
+  annotate("text", x = -6.5, y = Inf, label = "Before construction", vjust = 1.5, size = 3, colour = "grey30") +
+  annotate("text", x = 12, y = Inf, label = "After construction started", vjust = 1.5, size = 3, colour = "grey30") +
+  geom_line() +
+  geom_point(size = 0.8) +
+  scale_colour_manual(values = c("black", "#d1495b"), name = NULL) +
+  labs(
+    x = "Months since construction started on the block",
+    y = "Average tickets per block per month"
+  ) +
+  theme_minimal() +
+  theme(legend.position = "bottom", legend.direction = "vertical")
+```
+
+::: {.callout-note appearance="minimal"}
+**Write:** describe @fig-did-estimates and the overall result: `r round(main_effect$estimate, 2)` extra tickets per block per month (95% confidence interval `r round(main_effect$conf.low, 2)` to `r round(main_effect$conf.high, 2)`), about `r scales::percent(main_effect$percent_of_pre_mean, accuracy = 1)` of the tickets a construction block received before; the gap grows from the first six months to the second year; the year before is not significantly different.
+:::
+
+```{r}
+#| label: fig-did-estimates
+#| fig-cap: "The gap between construction blocks and their matched nearby blocks grew steadily after construction started. Each point is the change in the gap, in tickets per block per month, relative to the six months before construction; vertical lines are 95 per cent confidence intervals. Before construction the gap was not significantly different from the reference period."
+#| fig-width: 7
+#| fig-height: 3.8
+
+did_period |>
+  mutate(
+    period = factor(period, levels = c("-12 to -7", "-6 to -1", "0 to 6", "7 to 12", "13 to 18", "19 to 24")),
+    started = !(period %in% c("-12 to -7", "-6 to -1")),
+    label = case_when(
+      is.na(p.value) ~ "reference period",
+      p.value < 0.001 ~ "p < 0.001",
+      .default = str_c("p = ", format(round(p.value, 3), nsmall = 3))
+    )
+  ) |>
+  ggplot(aes(x = period, y = estimate, colour = started)) +
+  geom_hline(yintercept = 0, colour = "grey50") +
+  geom_vline(xintercept = 2.5, linetype = "dashed", colour = "grey50") +
+  geom_pointrange(aes(ymin = conf.low, ymax = conf.high)) +
+  geom_text(aes(y = conf.high, label = label), vjust = -0.8, size = 2.6, colour = "grey30") +
+  scale_colour_manual(values = c(`FALSE` = "#30638e", `TRUE` = "#d1495b"), guide = "none") +
+  scale_y_continuous(expand = expansion(mult = c(0.05, 0.15))) +
+  labs(
+    x = "Months since construction started",
+    y = "Extra tickets per block per month"
+  ) +
+  theme_minimal()
+```
+
+# Discussion {#sec-discussion}
+
+::: {.callout-note appearance="minimal"}
+**Write:** what we learn. Possible explanations: construction takes curb space and brings trucks and workers who park where they should not; enforcement may follow complaints.
+:::
+
+::: {.callout-note appearance="minimal"}
+**Write:** limitations. When the control group is nearby blocks that get construction later, the effect is smaller and not statistically significant (@tbl-robustness), so part of the gap may reflect the kinds of places where construction happens. Tickets measure enforcement as well as behaviour. Construction dates are approximate. About `r scales::percent(1 - located_share, accuracy = 1)` of tickets could not be placed on a block.
+:::
+
+::: {.callout-note appearance="minimal"}
+**Write:** next steps.
+:::
+
+\FloatBarrier
+\newpage
+
+\appendix
+
+# Appendix {-}
+
+# Data cleaning {#sec-cleaning}
+
+::: {.callout-note appearance="minimal"}
+**Write:** from these facts:
+
+- Tickets were read directly from the city's ZIP files, because reading them through `opendatatoronto` silently returned only 1.42 million of the 2.75 million tickets for 2012. The 2010 file is stored in a different text encoding (UTF-16) and was converted.
+- The published 2013 file ends on 18 November 2013; November and December 2013 are left out of the comparison.
+- Each ticket's street address was standardised (for example "AVENUE" to "AVE") and matched to the city's address points, then to the nearest street block; tickets written at intersections have no street number and could not be placed.
+- About 3 per cent of building permits record a completion date before their issue date and were dropped. Because completion dates are administrative, a site counts as active for at most six months for a demolition and three years for a new building.
+:::
+
+# Other versions of the comparison {#sec-robustness}
+
+@tbl-robustness reports the overall result under reasonable alternative choices.
+
+```{r}
+#| label: tbl-robustness
+#| tbl-cap: "Construction blocks received more tickets than matched nearby blocks in most versions of the comparison, but the gap is smaller and not statistically significant when the control blocks are ones that get construction later. Estimates are extra tickets per block per month over the 24 months after construction started."
+
+did_effects |>
+  filter(period == "All months after start") |>
+  transmute(
+    Comparison = comparison,
+    Blocks = construction_blocks,
+    Effect = if_else(str_detect(comparison, "Poisson"), NA_real_, estimate),
+    `95% interval` = if_else(
+      str_detect(comparison, "Poisson"), "",
+      sprintf("%.2f to %.2f", conf.low, conf.high)
+    ),
+    `Per cent of before` = percent_of_pre_mean,
+    `p-value` = if_else(p.value < 0.001, "< 0.001", sprintf("%.3f", p.value))
+  ) |>
+  tt(width = c(0.34, 0.14, 0.11, 0.16, 0.12, 0.13)) |>
+  format_tt(j = 2, digits = 0, num_mark_big = ",", num_fmt = "decimal") |>
+  format_tt(j = 3, digits = 2, num_fmt = "decimal", num_zero = TRUE, replace = "") |>
+  format_tt(j = 5, fn = scales::label_percent(accuracy = 0.1)) |>
+  format_tt(escape = TRUE) |>
+  style_tt(j = 2:6, align = "r")
+```
+
+::: {.callout-note appearance="minimal"}
+**Write:** explain the Poisson row: it measures the average percentage change per block, which gives quiet blocks with a few tickets a year as much weight as busy blocks, and finds no change.
+:::
+
+\FloatBarrier
+\newpage
+
+# References
