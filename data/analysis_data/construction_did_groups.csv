@@ -1,0 +1,75 @@
+event_month,construction_block,tickets,group
+-12,FALSE,4.588299294921088,Control: matched nearby blocks without construction
+-12,TRUE,5.618526622902991,Treatment: blocks with construction
+-11,FALSE,4.527610624850541,Control: matched nearby blocks without construction
+-11,TRUE,5.449307075127644,Treatment: blocks with construction
+-10,FALSE,4.557853148555892,Control: matched nearby blocks without construction
+-10,TRUE,5.653355215171408,Treatment: blocks with construction
+-9,FALSE,4.534728300513115,Control: matched nearby blocks without construction
+-9,TRUE,5.814551422319475,Treatment: blocks with construction
+-8,FALSE,4.478777656214469,Control: matched nearby blocks without construction
+-8,TRUE,5.791940189642597,Treatment: blocks with construction
+-7,FALSE,4.44430160467057,Control: matched nearby blocks without construction
+-7,TRUE,5.8068927789934355,Treatment: blocks with construction
+-6,FALSE,4.529741064918601,Control: matched nearby blocks without construction
+-6,TRUE,5.717541940189642,Treatment: blocks with construction
+-5,FALSE,4.50404814004627,Control: matched nearby blocks without construction
+-5,TRUE,5.571663019693654,Treatment: blocks with construction
+-4,FALSE,4.507877461709295,Control: matched nearby blocks without construction
+-4,TRUE,5.5401167031363965,Treatment: blocks with construction
+-3,FALSE,4.4620866763944145,Control: matched nearby blocks without construction
+-3,TRUE,5.558716265499635,Treatment: blocks with construction
+-2,FALSE,4.445568927792384,Control: matched nearby blocks without construction
+-2,TRUE,5.521699489423778,Treatment: blocks with construction
+-1,FALSE,4.382394237785064,Control: matched nearby blocks without construction
+-1,TRUE,5.483588621444201,Treatment: blocks with construction
+0,FALSE,4.450999200641919,Control: matched nearby blocks without construction
+0,TRUE,5.587898911639919,Treatment: blocks with construction
+1,FALSE,4.381078633441878,Control: matched nearby blocks without construction
+1,TRUE,5.597151958028856,Treatment: blocks with construction
+2,FALSE,4.483437500002411,Control: matched nearby blocks without construction
+2,TRUE,5.6342803030303035,Treatment: blocks with construction
+3,FALSE,4.373917790625312,Control: matched nearby blocks without construction
+3,TRUE,5.577649325626204,Treatment: blocks with construction
+4,FALSE,4.3582334839281565,Control: matched nearby blocks without construction
+4,TRUE,5.766057748968769,Treatment: blocks with construction
+5,FALSE,4.334182083418447,Control: matched nearby blocks without construction
+5,TRUE,5.868112194151581,Treatment: blocks with construction
+6,FALSE,4.425116326119983,Control: matched nearby blocks without construction
+6,TRUE,6.0084968642524785,Treatment: blocks with construction
+7,FALSE,4.414627951677101,Control: matched nearby blocks without construction
+7,TRUE,6.04345140032949,Treatment: blocks with construction
+8,FALSE,4.4395289779469485,Control: matched nearby blocks without construction
+8,TRUE,6.158839490711752,Treatment: blocks with construction
+9,FALSE,4.38519222644911,Control: matched nearby blocks without construction
+9,TRUE,5.996831432192649,Treatment: blocks with construction
+10,FALSE,4.396485042737158,Control: matched nearby blocks without construction
+10,TRUE,5.8649572649572645,Treatment: blocks with construction
+11,FALSE,4.34548746921835,Control: matched nearby blocks without construction
+11,TRUE,5.950890916992612,Treatment: blocks with construction
+12,FALSE,4.287808199015725,Control: matched nearby blocks without construction
+12,TRUE,5.765290351070877,Treatment: blocks with construction
+13,FALSE,4.22797898502315,Control: matched nearby blocks without construction
+13,TRUE,5.853342275877488,Treatment: blocks with construction
+14,FALSE,4.182130739653519,Control: matched nearby blocks without construction
+14,TRUE,5.8859986428409865,Treatment: blocks with construction
+15,FALSE,4.139808375832389,Control: matched nearby blocks without construction
+15,TRUE,5.872276309689384,Treatment: blocks with construction
+16,FALSE,4.1777541371175735,Control: matched nearby blocks without construction
+16,TRUE,5.995744680851064,Treatment: blocks with construction
+17,FALSE,4.148109549201836,Control: matched nearby blocks without construction
+17,TRUE,5.874697043141056,Treatment: blocks with construction
+18,FALSE,4.151294458231519,Control: matched nearby blocks without construction
+18,TRUE,6.2893300248138955,Treatment: blocks with construction
+19,FALSE,4.175739570165905,Control: matched nearby blocks without construction
+19,TRUE,6.275600505689002,Treatment: blocks with construction
+20,FALSE,4.267701863355572,Control: matched nearby blocks without construction
+20,TRUE,6.208592132505176,Treatment: blocks with construction
+21,FALSE,4.223110875707654,Control: matched nearby blocks without construction
+21,TRUE,6.077330508474576,Treatment: blocks with construction
+22,FALSE,4.146254732289097,Control: matched nearby blocks without construction
+22,TRUE,5.998377501352082,Treatment: blocks with construction
+23,FALSE,4.041788170565258,Control: matched nearby blocks without construction
+23,TRUE,5.845392022008253,Treatment: blocks with construction
+24,FALSE,4.022841225627977,Control: matched nearby blocks without construction
+24,TRUE,5.8774373259052926,Treatment: blocks with construction
