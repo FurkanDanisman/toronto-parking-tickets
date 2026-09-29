@@ -312,9 +312,7 @@ Despite these limitations, at the city level we observe that construction signif
 # Data cleaning {#sec-cleaning}
 
 - We downloaded the yearly ticket files directly, because `opendatatoronto` returned only 1.42 million of the 2.75 million tickets for 2012. The 2010 file is UTF-16 encoded and was converted.
-- The 2013 file ends on 18 November 2013. We left November and December 2013 out of the construction analysis.
 - We standardized street names (for example, "AVENUE" to "AVE"), matched each ticket to the City's address points, and assigned it to the nearest street block. Tickets written at intersections have no street number and were not assigned.
-- We kept building permits for new buildings and demolitions only. We dropped 1,163 permits (about 3 percent) whose completion date is before their issue date. A demolition counts as active for at most six months and a new building for at most three years after its permit was issued.
 - For each construction block, we chose five control blocks within 1.5 km but more than 250 m away, on the same type of street, with no construction from 12 months before to 24 months after the start, and with the closest number and trend of tickets in the year before.
 
 \FloatBarrier
