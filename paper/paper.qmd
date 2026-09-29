@@ -1,12 +1,12 @@
 ---
 title: "Construction Sites and Parking Tickets in Toronto"
-subtitle: "[Write: a subtitle that states the main finding]"
+subtitle: "Construction is not only paid by the government but also by the people. In this report, we show how construction sites affect the number of parking tickets issued in Toronto."
 author:
   - Furkan Danisman
 thanks: "Code and data are available at: [https://github.com/FurkanDanisman/toronto-parking-tickets](https://github.com/FurkanDanisman/toronto-parking-tickets)."
 date: today
 date-format: "D MMMM YYYY"
-abstract: "[Write: three or four sentences. (1) What was done: 32 million Toronto parking tickets from 2010 to 2025 were placed on street blocks, and blocks where construction started were compared with matched nearby blocks without construction. (2) What was found: construction blocks received about 0.4 more tickets per block per month, roughly 8 per cent more, and the gap grew over the first two years. (3) Why it matters.]"
+abstract: "Construction sites take up curb space in a city where parking is already scarce. We investigated 32 million Toronto parking tickets from 2010 to 2025 and compared blocks where construction started with similar nearby blocks without construction. After construction started, construction blocks received 7.8 percent more tickets than expected, and the gap grew from 4.0 percent in the first six months to 14.1 percent in the second year. Policy makers that permits that construction could come with parking plans for the surrounding blocks."
 format:
   pdf:
     toc: false
@@ -59,35 +59,29 @@ comma <- scales::label_comma()
 
 # Introduction
 
-::: {.callout-note appearance="minimal"}
-**Write:** paragraph on the broader context. Why parking enforcement matters in Toronto: the number of tickets each year (about `r comma(round(mean(tickets_by_year$tickets[tickets_by_year$year >= 2022 & !is.na(tickets_by_year$year)]), -4))` a year since 2022), the money involved, curb space as a scarce resource [@shoup2005], and fines as a way to change behaviour [@becker1968].
-:::
+In Toronto, the price of a car is only the lower bound of what it costs to own one. Owners also consider the price for fuel, insurance, maintenance and the loss in the car's value over time [@caa2018], and in a large city, parking as well [@shoup2005]. Two of these costs depend heavily on where a person lives and works. Insurers in Ontario price premiums partly by postal code [@wadehra2024] and the cost of parking depends on how many spaces are available nearby [@shoup2005] at any time of the day (@fig-heatmap). When curb space becomes scarce, it creates business opportunities. Parking on the street can be cheap but hard to find, so businesses take advantage of the lack of options and charge more for off-street parking. As a result, drivers either spend time circling for a space [@shoup2006] or park illegally, weighing the fine against the chance of being caught [@becker1968]. Toronto issues about two million parking tickets a year [@data_parking_tickets], so these choices add up. This paper asks what affects the number of tickets written on a street, and whether the City's own policies have unintended consequences for parking.
 
-::: {.callout-note appearance="minimal"}
-**Write:** paragraph on the gap and what was done. Construction sites take curb space and bring trucks, but whether they change where tickets are written is not known. This paper places `r comma(total_tickets)` tickets from 2010 to 2025 on the street network and compares `r comma(construction_blocks)` blocks where construction started with matched nearby blocks that had none, using a difference-in-differences design [@card1994; @angrist2009].
-:::
+Research on parking has studied how parking prices influence drivers' choices [@shoup2005; @shoup2006], and parking tickets have been used to study how enforcement and social norms affect behaviour [@fisman2007]. In a city like Toronto, where construction is constant, less attention has been given to how construction influences drivers' choices. This project addresses this gap by studying the impact of construction on parking ticket issuance. A demolition or a new building often occupies part of the road or sidewalk, which requires a separate street occupation permit from the City, and any parking spaces taken for construction staging must be identified in the application [@toronto_street_occupation]. Construction can therefore remove curb space while bringing trucks and workers who also need to park. Using 32,211,737 parking tickets issued in Toronto between 2010 and 2025 [@data_parking_tickets] and the City's building permit records [@data_building_permits_active; @data_building_permits_cleared], we analyze the relationship between construction and ticket issuance using causal inference. We compare a treated group of 5,484 blocks where construction started with a control group of nearby blocks on the same type of street that had no construction at the time and had a similar number of tickets in the year before [@stuart2010]. With this difference-in-differences design [@card1994; @angrist2009], we compare how tickets changed on construction blocks with how they changed on similar blocks over the same months.
 
-::: {.callout-note appearance="minimal"}
-**Write:** paragraph on what was found and why it matters. Construction blocks received `r round(main_effect$estimate, 2)` more tickets per block per month than their matched blocks (95% confidence interval `r round(main_effect$conf.low, 2)` to `r round(main_effect$conf.high, 2)`), about `r scales::percent(main_effect$percent_of_pre_mean, accuracy = 1)` more, and the gap grew the longer construction went on. Be specific; mention the caveat from @sec-discussion.
-:::
-
-The remainder of this paper is structured as follows. @sec-data describes the parking ticket and building permit data, how they are measured, and where tickets are written across the city and the day. @sec-construction explains how blocks with construction are compared with similar blocks without it and presents the results. @sec-discussion discusses what the results mean and their limitations. @sec-cleaning in the appendix describes how the data were cleaned and matched to the street network, and @sec-robustness reports alternative versions of the comparison.
+The remainder of this paper is structured as follows. @sec-data describes the parking ticket and building permit data, how they are measured, and where tickets are written across the city and the day. @sec-construction explains how blocks with construction are compared with similar blocks without it and presents the results. @sec-discussion discusses what the results mean and their limitations. @sec-cleaning in the appendix describes how the data were cleaned.
 
 # Data {#sec-data}
 
 ## Source and context
 
-::: {.callout-note appearance="minimal"}
-**Write:** the data come from Open Data Toronto, downloaded with the `opendatatoronto` package [@opendatatoronto]. Parking tickets [@data_parking_tickets]; building permits [@data_building_permits_active; @data_building_permits_cleared]; address points [@data_address_points]; street centreline [@data_centreline]; former municipality boundaries [@data_former_municipalities]; green spaces [@data_green_spaces]. Who publishes them and why; privacy (licence plates are removed and ticket numbers masked); why 2020 and 2021 are excluded (the pandemic changed parking and enforcement); similar datasets that could have been used and why they were not (for example, road restrictions exist only as a live feed, and utility cut permits only cover 2024 onward).
-:::
+All data come from Open Data Toronto, the City of Toronto's open data portal, launched in 2009 [@opendata_about], and were downloaded with `opendatatoronto` [@opendatatoronto].
+
+Parking tickets are published annually by the City's Revenue Services division, one row per ticket since 2008 [@data_parking_tickets]. Tickets are issued by Toronto Police Service personnel and people it has certified. Licence plates are not published and kept anonymous. We use 2010 to 2019 and 2022 to 2025; 2020 and 2021 are excluded because of the pandemic [@westoll2020].
+
+Information on construction sites comes from Toronto Building's active and cleared building permits [@data_building_permits_active; @data_building_permits_cleared]. Tickets and sites are located with the City's address points [@data_address_points] and street centreline [@data_centreline]. While visualizing on maps, we use the former municipality boundaries [@data_former_municipalities].
 
 The analysis uses R [@citeR] with the `tidyverse` [@tidyverse], `arrow` [@arrow], `sf` [@sf], `jsonlite` [@jsonlite], `fixest` [@fixest], `testthat` [@testthat], `here` [@here], and `knitr` [@knitr]. Graphs are made with `ggplot2` [@ggplot2] and `hexbin` [@hexbin], and tables with `tinytable` [@tinytable].
 
 ## Measurement
 
-::: {.callout-note appearance="minimal"}
-**Write:** how an event in the world becomes a row. A parking enforcement officer (or police officer) sees a vehicle parked against a rule, issues a ticket with the date, time, infraction, fine and a location written as an address or an intersection; the city publishes the ticket with the plate removed. What this misses: violations nobody ticketed, so the counts measure enforcement as much as behaviour; tickets later cancelled or disputed are still counted. For construction: a permit is issued, but its "completed" date is administrative, so active periods are approximated (see @sec-cleaning).
-:::
+A ticket is created when an officer sees a vehicle breaking a parking rule and issues a ticket recording the date, time, rule broken, set fine and location, given either as an address or as a street [@data_parking_tickets]. 
+
+A construction site is recorded when the City issues a building permit, with an issue date and, once the permit is closed, a completion date [@data_building_permits_active; @data_building_permits_cleared]. 
 
 ## Parking tickets
 
@@ -95,7 +89,7 @@ The analysis uses R [@citeR] with the `tidyverse` [@tidyverse], `arrow` [@arrow]
 
 ```{r}
 #| label: tbl-variables
-#| tbl-cap: "Each parking ticket records when and where it was issued, the rule that was broken, and the fine. Ticket numbers are partly masked and licence plates are not published."
+#| tbl-cap: "Variables recorded for each parking ticket, with an example."
 
 tibble(
   Variable = c(
@@ -122,13 +116,11 @@ tibble(
   style_tt(j = 1:3, align = "l")
 ```
 
-::: {.callout-note appearance="minimal"}
-**Write:** describe @tbl-years: about two million tickets a year, the share placed on a street block, how the average fine changed; note that the published 2013 file stops on 18 November 2013.
-:::
+@tbl-years shows between 1.8 million and 2.8 million tickets each year, with the lowest count in 2022. Between 86 and 88 percent of tickets each year could be matched to an address and assigned to a street block; the rest were mostly written at intersections, which have no street number. The average fine increases from $40 in 2010 to about $49 in 2016 to 2019, then to $68 in 2024 and $80 in 2025. However, one should consider the inflation before making judgements about the fee. 
 
 ```{r}
 #| label: tbl-years
-#| tbl-cap: "Toronto issues about two million parking tickets a year, and more than 85 per cent can be placed on a specific street block. The average fine was stable through the 2010s and rose sharply in 2024 and 2025. The 2013 file ends on 18 November 2013."
+#| tbl-cap: "Parking tickets issued each year, the share assigned to a street block, the average fine, and the total value of fines, 2010 to 2019 and 2022 to 2025."
 
 tickets_by_year |>
   filter(!is.na(year)) |>
@@ -148,39 +140,11 @@ tickets_by_year |>
   style_tt(j = 2:5, align = "r")
 ```
 
-::: {.callout-note appearance="minimal"}
-**Write:** describe @tbl-infractions: the most common rules broken in 2025, their fines, and which happen overnight.
-:::
-
-```{r}
-#| label: tbl-infractions
-#| tbl-cap: "Eight rules account for most tickets. Parking on private property is the most common; tickets for parking without a permit and for staying longer than three hours are mostly written overnight, when permit parking rules apply."
-
-top_infractions |>
-  transmute(
-    Code = as.character(infraction_code),
-    Rule = str_to_sentence(description),
-    Fine = fine,
-    Tickets = tickets,
-    `Share of all tickets` = share,
-    `Written overnight` = overnight_share
-  ) |>
-  tt(width = c(0.08, 0.36, 0.1, 0.14, 0.16, 0.16)) |>
-  format_tt(j = 3, fn = scales::label_dollar(accuracy = 1)) |>
-  format_tt(j = 4, digits = 0, num_mark_big = ",", num_fmt = "decimal") |>
-  format_tt(j = 5:6, fn = scales::label_percent(accuracy = 1)) |>
-  format_tt(escape = TRUE) |>
-  style_tt(j = 1:2, align = "l") |>
-  style_tt(j = 3:6, align = "r")
-```
-
-::: {.callout-note appearance="minimal"}
-**Write:** describe @fig-heatmap: where tickets are written at different times of day. Overnight tickets spread across the whole city; during working hours they concentrate downtown and along Yonge Street.
-:::
+We split the day into four periods: overnight (00:00 to 05:59), morning (06:00 to 08:59), working hours (09:00 to 16:59) and after work (17:00 to 23:59). @fig-heatmap shows the average number of tickets per hour in 2025 for each period, and the dashed lines mark the boundaries of the six former municipalities. Overnight, tickets are spread fairly evenly across the city. When people start going to work, tickets begin to concentrate downtown, and this concentration is strongest during working hours. After work, the concentration eases and tickets spread out across the city again. This could mean that there is no particular driving culture in one part of the city, but rather that the concentration of tickets is driven by where people work and where they park during the day.
 
 ```{r}
 #| label: fig-heatmap
-#| fig-cap: "Overnight tickets are spread across the city, while working-hours tickets concentrate downtown. Each hexagon is 300 metres across; its colour is the average number of tickets issued there per hour in that time window on a 2025 day. Dashed lines are the six former municipalities amalgamated in 1998. The map is rotated so Toronto's street grid runs horizontally."
+#| fig-cap: "Average parking tickets per hour in 2025 by time of day, in 300-metre hexagons. Dashed lines are the boundaries of the six former municipalities."
 #| fig-width: 7
 #| fig-height: 5.2
 
@@ -227,13 +191,11 @@ ggplot() +
 
 ## Construction sites
 
-::: {.callout-note appearance="minimal"}
-**Write:** building permits identify construction sites; only new buildings and demolitions are kept, because interior, plumbing and mechanical work does not affect the street. Describe @tbl-construction.
-:::
+We identify construction sites from building permits and keep only permits for new buildings and demolitions, since work inside existing buildings, such as plumbing or mechanical work, is less likely to affect the street. @tbl-construction shows 12,628 demolitions and 18,716 new buildings active between 2010 and 2025, and about 91 to 92 percent of each could be assigned to a street block.
 
 ```{r}
 #| label: tbl-construction
-#| tbl-cap: "Building permits identify more than 30,000 new buildings and demolitions active between 2010 and 2025, and about nine in ten can be placed on a street block. Demolitions are short; new buildings are counted as active for up to three years."
+#| tbl-cap: "New buildings and demolitions between 2010 and 2025."
 
 construction_summary |>
   transmute(
@@ -254,29 +216,34 @@ construction_summary |>
 
 ## Comparing blocks with and without construction
 
-::: {.callout-note appearance="minimal"}
-**Write:** explain difference-in-differences in plain language. A block where construction starts (the treatment group) is compared with the average of five nearby blocks with no construction (the control group). Controls are within 1.5 km but more than 250 m away (so construction does not spill onto them), on the same kind of street, with no construction from 12 months before to 24 months after the start, and with the most similar number and trend of tickets in the year before [@stuart2010]. Each construction block and its controls form a "stack" observed over the same calendar months [@wing2024]. The effect is how much the gap between the two groups changes after construction starts, compared with the year before. Explain why the year before matters (the groups should move in parallel before construction) and the risk of regression to the mean in matched designs [@daw2018; @roth2023].
-:::
+We treat construction as an intervention and measure its influence by forming two groups. The treatment group consists of blocks where construction started, and the control group consists of nearby blocks with no construction that had a similar number of parking tickets in the year before.
 
-The comparison is estimated with the regression
+Before any inference, we first check the parallel trends assumption by comparing the two groups in the year before construction started. This assumption means that, without construction, both groups would have continued to change in the same way. Then we compare how the two groups changed before and after construction started to estimate the effect of construction on parking tickets.
+
+We estimate the effect of construction with the regression
 
 $$
-y_{it} = \alpha_i + \gamma_{s(i),t} + \beta D_{it} + \varepsilon_{it},
+y_{it} = \alpha_i + \gamma_{s(i),t} + \beta D_{it} + \varepsilon_{it}.
 $$
 
-::: {.callout-note appearance="minimal"}
-**Write:** explain each symbol in words. $y_{it}$ is the number of tickets on block $i$ in month $t$; $\alpha_i$ is each block's usual number of tickets; $\gamma_{s(i),t}$ is anything a construction block shares with its own control blocks in that calendar month, such as a citywide enforcement push or a snowy February; $D_{it}$ is 1 for a construction block after its construction started and 0 otherwise; $\beta$ is the effect, measured in extra tickets per block per month; $\varepsilon_{it}$ is everything else. Explain the confidence interval and p-value in plain words.
-:::
+Each group is followed from 12 months before to 24 months after its construction started. In the model:
 
-## Results
+- $y_{it}$ is the number of parking tickets on block $i$ in month $t$.
+- $\alpha_i$ is the average number of tickets on block $i$.
+- $\gamma_{s(i),t}$ is the month effect shared by block $i$'s group $s(i)$ in month $t$.
+- $D_{it}$ is recorded as 1 for a construction block in the months after its construction started, and 0 otherwise.
+- $\beta$ is the number of extra tickets per month on a construction block after construction started.
+- $\varepsilon_{it}$ is the part of the ticket count the model does not explain.
 
-::: {.callout-note appearance="minimal"}
-**Write:** describe @fig-did-groups: the two groups move in parallel before construction; afterwards the control group continues a slow decline shared by the whole city while construction blocks rise.
-:::
+The model above gives one average effect for all 24 months after construction started. To see how the effect changes over time, we also estimate it separately for each six-month period, from 12 months before to 24 months after construction started. Each estimate in @fig-did-estimates is the number of extra tickets per block per month in that period.
+
+## Results {#sec-results}
+
+Before construction started, the two groups moved in parallel (@fig-did-groups), and the difference was only 0.07 tickets per block per month, which is not statistically significant (p = 0.10). After construction started, construction blocks received 4.0 percent more tickets than expected in the first six months, 8.0 percent more in months 7 to 12, 11.4 percent more in months 13 to 18 and 14.1 percent more in months 19 to 24 (@fig-did-estimates). Over the full 24 months, construction blocks received 7.8 percent more tickets than expected, or in other words, 0.44 extra tickets per block per month (p < 0.001).
 
 ```{r}
 #| label: fig-did-groups
-#| fig-cap: "Tickets on blocks where construction started rose, while similar nearby blocks without construction continued a slow decline. Each line is the average number of tickets per block per month; the control line averages each construction block's five matched nearby blocks, so every construction block and its controls count once."
+#| fig-cap: "Average parking tickets per block per month on blocks where construction started (treatment) and on their five matched nearby blocks without construction (control), from 12 months before to 24 months after construction started."
 #| fig-width: 7
 #| fig-height: 4
 
@@ -298,13 +265,10 @@ did_groups |>
   theme(legend.position = "bottom", legend.direction = "vertical")
 ```
 
-::: {.callout-note appearance="minimal"}
-**Write:** describe @fig-did-estimates and the overall result: `r round(main_effect$estimate, 2)` extra tickets per block per month (95% confidence interval `r round(main_effect$conf.low, 2)` to `r round(main_effect$conf.high, 2)`), about `r scales::percent(main_effect$percent_of_pre_mean, accuracy = 1)` of the tickets a construction block received before; the gap grows from the first six months to the second year; the year before is not significantly different.
-:::
 
 ```{r}
 #| label: fig-did-estimates
-#| fig-cap: "The gap between construction blocks and their matched nearby blocks grew steadily after construction started. Each point is the change in the gap, in tickets per block per month, relative to the six months before construction; vertical lines are 95 per cent confidence intervals. Before construction the gap was not significantly different from the reference period."
+#| fig-cap: "Difference-in-differences estimates of extra parking tickets per block per month on construction blocks, by six-month period, relative to the six months before construction started. Vertical lines are 95 percent confidence intervals."
 #| fig-width: 7
 #| fig-height: 3.8
 
@@ -334,17 +298,9 @@ did_period |>
 
 # Discussion {#sec-discussion}
 
-::: {.callout-note appearance="minimal"}
-**Write:** what we learn. Possible explanations: construction takes curb space and brings trucks and workers who park where they should not; enforcement may follow complaints.
-:::
+In this study we only investigated the areas in Toronto, so the results apply only at the city level; similar results from other cities would strengthen the implications. Beyond generalizability limitation, we are also limited in what we can infer about causes. We do not know whether other changes caused the groups to move in these directions. There may be unmeasured confounders.
 
-::: {.callout-note appearance="minimal"}
-**Write:** limitations. When the control group is nearby blocks that get construction later, the effect is smaller and not statistically significant (@tbl-robustness), so part of the gap may reflect the kinds of places where construction happens. Tickets measure enforcement as well as behaviour. Construction dates are approximate. About `r scales::percent(1 - located_share, accuracy = 1)` of tickets could not be placed on a block.
-:::
-
-::: {.callout-note appearance="minimal"}
-**Write:** next steps.
-:::
+Despite these limitations, at the city level we observe that construction significantly affects the number of parking tickets. For the City, these results suggest that permits allowing construction to occupy the street could come with plans for the surrounding blocks, such as temporary parking, loading zones or adjusted enforcement, which would give drivers more options and less reason to park illegally. Also, part of the explanation may be that construction brings temporary parking rules that are unusual or not well known to the public. Either way, in the future studies, the problem can be investigated further, and strategies can be developed to reduce the number of tickets issued in these areas.
 
 \FloatBarrier
 \newpage
@@ -355,47 +311,11 @@ did_period |>
 
 # Data cleaning {#sec-cleaning}
 
-::: {.callout-note appearance="minimal"}
-**Write:** from these facts:
-
-- Tickets were read directly from the city's ZIP files, because reading them through `opendatatoronto` silently returned only 1.42 million of the 2.75 million tickets for 2012. The 2010 file is stored in a different text encoding (UTF-16) and was converted.
-- The published 2013 file ends on 18 November 2013; November and December 2013 are left out of the comparison.
-- Each ticket's street address was standardised (for example "AVENUE" to "AVE") and matched to the city's address points, then to the nearest street block; tickets written at intersections have no street number and could not be placed.
-- About 3 per cent of building permits record a completion date before their issue date and were dropped. Because completion dates are administrative, a site counts as active for at most six months for a demolition and three years for a new building.
-:::
-
-# Other versions of the comparison {#sec-robustness}
-
-@tbl-robustness reports the overall result under reasonable alternative choices.
-
-```{r}
-#| label: tbl-robustness
-#| tbl-cap: "Construction blocks received more tickets than matched nearby blocks in most versions of the comparison, but the gap is smaller and not statistically significant when the control blocks are ones that get construction later. Estimates are extra tickets per block per month over the 24 months after construction started."
-
-did_effects |>
-  filter(period == "All months after start") |>
-  transmute(
-    Comparison = comparison,
-    Blocks = construction_blocks,
-    Effect = if_else(str_detect(comparison, "Poisson"), NA_real_, estimate),
-    `95% interval` = if_else(
-      str_detect(comparison, "Poisson"), "",
-      sprintf("%.2f to %.2f", conf.low, conf.high)
-    ),
-    `Per cent of before` = percent_of_pre_mean,
-    `p-value` = if_else(p.value < 0.001, "< 0.001", sprintf("%.3f", p.value))
-  ) |>
-  tt(width = c(0.34, 0.14, 0.11, 0.16, 0.12, 0.13)) |>
-  format_tt(j = 2, digits = 0, num_mark_big = ",", num_fmt = "decimal") |>
-  format_tt(j = 3, digits = 2, num_fmt = "decimal", num_zero = TRUE, replace = "") |>
-  format_tt(j = 5, fn = scales::label_percent(accuracy = 0.1)) |>
-  format_tt(escape = TRUE) |>
-  style_tt(j = 2:6, align = "r")
-```
-
-::: {.callout-note appearance="minimal"}
-**Write:** explain the Poisson row: it measures the average percentage change per block, which gives quiet blocks with a few tickets a year as much weight as busy blocks, and finds no change.
-:::
+- We downloaded the yearly ticket files directly, because `opendatatoronto` returned only 1.42 million of the 2.75 million tickets for 2012. The 2010 file is UTF-16 encoded and was converted.
+- The 2013 file ends on 18 November 2013. We left November and December 2013 out of the construction analysis.
+- We standardized street names (for example, "AVENUE" to "AVE"), matched each ticket to the City's address points, and assigned it to the nearest street block. Tickets written at intersections have no street number and were not assigned.
+- We kept building permits for new buildings and demolitions only. We dropped 1,163 permits (about 3 percent) whose completion date is before their issue date. A demolition counts as active for at most six months and a new building for at most three years after its permit was issued.
+- For each construction block, we chose five control blocks within 1.5 km but more than 250 m away, on the same type of street, with no construction from 12 months before to 24 months after the start, and with the closest number and trend of tickets in the year before.
 
 \FloatBarrier
 \newpage
